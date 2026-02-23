@@ -1,0 +1,76 @@
+#!/bin/bash
+# WolfGuard service control script
+# Manages cron scheduling for backup tiers
+
+PLUGIN_DIR="/usr/local/emhttp/plugins/wolfguard"
+PLUGIN_CFG="/boot/config/plugins/wolfguard/wolfguard.cfg"
+DEFAULT_CFG="${PLUGIN_DIR}/default.cfg"
+CRON_FILE="/etc/cron.d/wolfguard"
+
+# Load config
+source "$DEFAULT_CFG"
+[[ -f "$PLUGIN_CFG" ]] && source "$PLUGIN_CFG"
+
+install_cron() {
+    local cron_content=""
+
+    # Tier 1 schedule
+    if [[ -n "$VMS_TIER1" ]]; then
+        IFS=',' read -ra T1 <<< "$VMS_TIER1"
+        for vm in "${T1[@]}"; do
+            vm=$(echo "$vm" | xargs)
+            [[ -n "$vm" ]] && cron_content+="${SCHEDULE_TIER1} ${PLUGIN_DIR}/scripts/wolfguard-backup.sh --vm \"${vm}\" > /dev/null 2>&1\n"
+        done
+    fi
+
+    # Tier 2 schedule
+    if [[ -n "$VMS_TIER2" ]]; then
+        IFS=',' read -ra T2 <<< "$VMS_TIER2"
+        for vm in "${T2[@]}"; do
+            vm=$(echo "$vm" | xargs)
+            [[ -n "$vm" ]] && cron_content+="${SCHEDULE_TIER2} ${PLUGIN_DIR}/scripts/wolfguard-backup.sh --vm \"${vm}\" > /dev/null 2>&1\n"
+        done
+    fi
+
+    if [[ -n "$cron_content" ]]; then
+        echo -e "# WolfGuard backup schedules (auto-generated)\n${cron_content}" > "$CRON_FILE"
+        echo "WolfGuard: cron schedules installed"
+    else
+        rm -f "$CRON_FILE"
+        echo "WolfGuard: no VMs configured, cron removed"
+    fi
+}
+
+remove_cron() {
+    rm -f "$CRON_FILE"
+    echo "WolfGuard: cron schedules removed"
+}
+
+case "$1" in
+    start)
+        install_cron
+        ;;
+    stop)
+        remove_cron
+        ;;
+    restart)
+        remove_cron
+        install_cron
+        ;;
+    status)
+        if [[ -f "$CRON_FILE" ]]; then
+            echo "WolfGuard: active"
+            cat "$CRON_FILE"
+        else
+            echo "WolfGuard: not scheduled"
+        fi
+        ;;
+    run)
+        # Manual run — backs up all configured VMs now
+        "${PLUGIN_DIR}/scripts/wolfguard-backup.sh" --force
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|run}"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,3 @@
+#!/bin/bash
+# WolfGuard: Services stopping — remove cron schedules
+/etc/rc.d/rc.wolfguard stop

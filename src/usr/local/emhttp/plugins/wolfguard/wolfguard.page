@@ -1,0 +1,170 @@
+Menu="Utilities"
+Title="WolfGuard"
+Icon="shield"
+Type="php"
+Tabs="true"
+---
+<?php
+$plugin = "wolfguard";
+$cfg = parse_plugin_cfg($plugin);
+$status_file = "/boot/config/plugins/wolfguard/status.json";
+$status = file_exists($status_file) ? json_decode(file_get_contents($status_file), true) : null;
+
+// Get VM list
+$vm_output = [];
+exec("virsh list --all --name 2>/dev/null", $vm_output);
+$all_vms = array_values(array_filter(array_map('trim', $vm_output)));
+
+// Parse tier assignments
+$tier1_vms = array_filter(array_map('trim', explode(',', $cfg['VMS_TIER1'] ?? '')));
+$tier2_vms = array_filter(array_map('trim', explode(',', $cfg['VMS_TIER2'] ?? '')));
+
+// Check if running
+$is_running = false;
+if (file_exists('/var/run/wolfguard.lock')) {
+    $pid = trim(file_get_contents('/var/run/wolfguard.lock'));
+    $is_running = file_exists("/proc/$pid");
+}
+?>
+
+<!-- Tab: Status -->
+<div id="title" class="nocontrol">
+    WolfGuard VM Backup
+</div>
+
+<div style="margin: 20px 0;">
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <!-- Status Card -->
+        <div style="background: #1a1a2e; border: 1px solid <?=$is_running ? '#f0ad4e' : ($status && $status['exit_code'] === 0 ? '#4caf50' : '#e74c3c')?>; border-radius: 8px; padding: 20px; min-width: 280px; flex: 1;">
+            <div style="font-size: 14px; color: #888; margin-bottom: 8px;">Backup Status</div>
+            <div style="font-size: 24px; font-weight: bold; color: <?=$is_running ? '#f0ad4e' : ($status && $status['exit_code'] === 0 ? '#4caf50' : '#e74c3c')?>;">
+                <?php
+                if ($is_running) echo "Running...";
+                elseif (!$status) echo "Never Run";
+                elseif ($status['exit_code'] === 0) echo "Healthy";
+                else echo "Failed";
+                ?>
+            </div>
+            <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                Last run: <?=htmlspecialchars($status['last_run'] ?? 'Never')?>
+            </div>
+        </div>
+
+        <!-- Per-VM Cards -->
+        <?php
+        $backup_dir = $cfg['BACKUP_DIR'] ?? '/mnt/user/claudebackups/wolfguard';
+        foreach (array_merge($tier1_vms, $tier2_vms) as $vm):
+            $vm_dir = "$backup_dir/$vm";
+            $backups = is_dir($vm_dir) ? glob("$vm_dir/*.img.zst") : [];
+            $backup_count = count($backups);
+            $latest_time = 0;
+            $total_bytes = 0;
+            foreach ($backups as $b) {
+                $total_bytes += filesize($b);
+                $mt = filemtime($b);
+                if ($mt > $latest_time) $latest_time = $mt;
+            }
+            $tier = in_array($vm, $tier1_vms) ? '1' : '2';
+            $succeeded = $status && in_array($vm, $status['succeeded'] ?? []);
+            $failed = $status && in_array($vm, $status['failed'] ?? []);
+        ?>
+        <div style="background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 20px; min-width: 220px; flex: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 16px; font-weight: bold;"><?=htmlspecialchars($vm)?></div>
+                <span style="background: <?=$tier === '1' ? '#2d5a27' : '#4a3f2e'?>; color: <?=$tier === '1' ? '#4caf50' : '#f0ad4e'?>; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                    Tier <?=$tier?>
+                </span>
+            </div>
+            <div style="font-size: 12px; color: #888; margin-top: 12px;">
+                <div>Backups: <?=$backup_count?></div>
+                <div>Size: <?=round($total_bytes / (1024*1024*1024), 1)?> GB</div>
+                <div>Latest: <?=$latest_time > 0 ? date('M j, g:ia', $latest_time) : 'Never'?></div>
+                <?php if ($succeeded): ?>
+                    <div style="color: #4caf50; margin-top: 4px;">Last: Verified</div>
+                <?php elseif ($failed): ?>
+                    <div style="color: #e74c3c; margin-top: 4px;">Last: FAILED</div>
+                <?php endif; ?>
+            </div>
+            <div style="margin-top: 12px;">
+                <button onclick="runBackup('<?=htmlspecialchars($vm)?>')" style="background: #333; border: 1px solid #555; color: #ccc; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                    Backup Now
+                </button>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- Run All Button -->
+    <div style="margin-top: 20px;">
+        <button onclick="runBackup('')" style="background: #2d5a27; border: 1px solid #4caf50; color: #4caf50; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">
+            Run All Backups Now
+        </button>
+        <span id="run-status" style="margin-left: 12px; color: #888;"></span>
+    </div>
+</div>
+
+<!-- Log Viewer -->
+<div style="margin-top: 30px;">
+    <div style="font-size: 14px; color: #888; margin-bottom: 8px;">
+        Recent Log
+        <button onclick="refreshLogs()" style="background: none; border: 1px solid #555; color: #888; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-left: 8px;">Refresh</button>
+    </div>
+    <pre id="log-viewer" style="background: #111; border: 1px solid #333; border-radius: 6px; padding: 16px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #ccc; white-space: pre-wrap;">Loading...</pre>
+</div>
+
+<script>
+function runBackup(vm) {
+    var statusEl = document.getElementById('run-status');
+    statusEl.textContent = 'Starting backup' + (vm ? ' for ' + vm : '') + '...';
+    statusEl.style.color = '#f0ad4e';
+
+    $.post('/plugins/wolfguard/php/exec.php',
+        {action: 'run_backup', vm: vm},
+        function(data) {
+            var resp = JSON.parse(data);
+            statusEl.textContent = 'Backup started for ' + (resp.vm || 'all VMs');
+            statusEl.style.color = '#4caf50';
+            // Poll for completion
+            setTimeout(function() { checkRunning(); }, 3000);
+        }
+    ).fail(function() {
+        statusEl.textContent = 'Failed to start backup';
+        statusEl.style.color = '#e74c3c';
+    });
+}
+
+function checkRunning() {
+    $.post('/plugins/wolfguard/php/exec.php',
+        {action: 'is_running'},
+        function(data) {
+            var resp = JSON.parse(data);
+            var statusEl = document.getElementById('run-status');
+            if (resp.running) {
+                statusEl.textContent = 'Backup in progress...';
+                statusEl.style.color = '#f0ad4e';
+                setTimeout(function() { checkRunning(); }, 5000);
+                refreshLogs();
+            } else {
+                statusEl.textContent = 'Backup complete. Refresh page for results.';
+                statusEl.style.color = '#4caf50';
+                refreshLogs();
+            }
+        }
+    );
+}
+
+function refreshLogs() {
+    $.post('/plugins/wolfguard/php/exec.php',
+        {action: 'get_logs'},
+        function(data) {
+            var resp = JSON.parse(data);
+            var viewer = document.getElementById('log-viewer');
+            viewer.textContent = resp.logs || 'No logs yet.';
+            viewer.scrollTop = viewer.scrollHeight;
+        }
+    );
+}
+
+// Load logs on page load
+$(function() { refreshLogs(); });
+</script>

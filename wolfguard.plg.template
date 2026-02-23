@@ -1,0 +1,90 @@
+<?xml version='1.0' standalone='yes'?>
+<!DOCTYPE PLUGIN [
+<!ENTITY name        "wolfguard">
+<!ENTITY author      "OPUS (w0lf69)">
+<!ENTITY version     "%%VERSION%%">
+<!ENTITY pluginURL   "https://raw.githubusercontent.com/w0lf69/wolfguard/main/wolfguard.plg">
+<!ENTITY support     "https://github.com/w0lf69/wolfguard">
+<!ENTITY project     "https://github.com/w0lf69/wolfguard">
+<!ENTITY txzURL      "%%TXZ_URL%%">
+<!ENTITY txzSHA256   "%%TXZ_SHA256%%">
+<!ENTITY pluginLOC   "/boot/config/plugins/&name;">
+<!ENTITY emhttpLOC   "/usr/local/emhttp/plugins/&name;">
+]>
+
+<PLUGIN name="&name;" author="&author;" version="&version;"
+    pluginURL="&pluginURL;"
+    support="&support;"
+    project="&project;"
+    icon="shield"
+    min="6.12.0"
+    launch="Utilities/WolfGuard">
+
+<CHANGES>
+### %%VERSION%%
+- Initial release
+- Live VM backup with QEMU snapshots (fsfreeze via guest agent)
+- zstd compression (sparse-aware)
+- Self-verification after every backup
+- Tier-based scheduling (daily/weekly)
+- Pushover notifications on failure
+- Backblaze B2 ready (not yet implemented)
+- Built by OPUS for Dino
+</CHANGES>
+
+<!-- Pre-install: clean old package versions -->
+<FILE Run="/bin/bash">
+<INLINE>
+rm -f /boot/config/plugins/wolfguard/wolfguard-*.txz
+mkdir -p /boot/config/plugins/wolfguard
+mkdir -p /var/log/wolfguard
+echo "WolfGuard: preparing installation..."
+</INLINE>
+</FILE>
+
+<!-- Download and install package -->
+<FILE Name="/boot/config/plugins/wolfguard/wolfguard-&version;.txz" Run="upgradepkg --install-new">
+<URL>&txzURL;</URL>
+<SHA256>&txzSHA256;</SHA256>
+</FILE>
+
+<!-- Post-install: set permissions, install cron -->
+<FILE Run="/bin/bash">
+<INLINE>
+# Set script permissions
+chmod +x /usr/local/emhttp/plugins/wolfguard/scripts/*.sh
+chmod +x /etc/rc.d/rc.wolfguard
+chmod +x /usr/local/emhttp/plugins/wolfguard/event/*
+
+# Create config directory on flash (persistent)
+mkdir -p /boot/config/plugins/wolfguard
+
+# Install cron schedules if array is started
+if [[ -d /mnt/user ]]; then
+    /etc/rc.d/rc.wolfguard start
+fi
+
+echo "WolfGuard v&version; installed successfully."
+echo "Configure at Settings > Utilities > WolfGuard"
+</INLINE>
+</FILE>
+
+<!-- Removal script -->
+<FILE Run="/bin/bash" Method="remove">
+<INLINE>
+# Remove cron schedules
+/etc/rc.d/rc.wolfguard stop 2>/dev/null || true
+
+# Remove package
+removepkg wolfguard-&version; 2>/dev/null || true
+
+# Clean up (keep config and backups — user data)
+rm -f /etc/cron.d/wolfguard
+rm -f /var/run/wolfguard.lock
+
+echo "WolfGuard removed. Config preserved at /boot/config/plugins/wolfguard/"
+echo "Backup data preserved at configured backup directory."
+</INLINE>
+</FILE>
+
+</PLUGIN>

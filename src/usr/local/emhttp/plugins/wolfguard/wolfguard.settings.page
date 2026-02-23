@@ -1,0 +1,191 @@
+Menu="Utilities:WolfGuard"
+Title="WolfGuard Settings"
+Type="php"
+---
+<?php
+$plugin = "wolfguard";
+$cfg = parse_plugin_cfg($plugin);
+
+// Get VM list for checkboxes
+$vm_output = [];
+exec("virsh list --all --name 2>/dev/null", $vm_output);
+$all_vms = array_values(array_filter(array_map('trim', $vm_output)));
+
+$tier1_vms = array_filter(array_map('trim', explode(',', $cfg['VMS_TIER1'] ?? '')));
+$tier2_vms = array_filter(array_map('trim', explode(',', $cfg['VMS_TIER2'] ?? '')));
+?>
+
+<form markdown="1" method="POST" action="/update.php" target="progressFrame">
+<input type="hidden" name="#file" value="wolfguard/wolfguard.cfg">
+<input type="hidden" name="#command" value="/etc/rc.d/rc.wolfguard restart">
+
+_(Backup Destination)_:
+: <input type="text" name="BACKUP_DIR" value="<?=$cfg['BACKUP_DIR']?>" data-pickroot="/mnt" data-pickfolders="true" size="50">
+
+<blockquote class="inline_help">
+Where compressed VM backups are stored. Must have enough space for your VMs.
+</blockquote>
+
+_(Compression Level)_:
+: <select name="ZSTD_LEVEL">
+<?=mk_option($cfg['ZSTD_LEVEL'], "1", _("1 - Fastest"))?>
+<?=mk_option($cfg['ZSTD_LEVEL'], "3", _("3 - Balanced (recommended)"))?>
+<?=mk_option($cfg['ZSTD_LEVEL'], "6", _("6 - Better compression"))?>
+<?=mk_option($cfg['ZSTD_LEVEL'], "9", _("9 - Best compression (slow)"))?>
+</select>
+
+<blockquote class="inline_help">
+Higher = smaller files but slower. Level 3 is recommended for NVMe-to-SSD backups.
+</blockquote>
+
+_(Compression Threads)_:
+: <select name="ZSTD_THREADS">
+<?=mk_option($cfg['ZSTD_THREADS'], "1", _("1"))?>
+<?=mk_option($cfg['ZSTD_THREADS'], "2", _("2 (recommended)"))?>
+<?=mk_option($cfg['ZSTD_THREADS'], "4", _("4"))?>
+</select>
+
+&nbsp;
+
+## VM Assignment
+
+_(Tier 1 VMs - Daily Backup)_:
+: <div id="tier1-vms">
+<?php foreach ($all_vms as $vm): ?>
+<label style="display: block; margin: 4px 0;">
+    <input type="checkbox" class="tier1-cb" value="<?=htmlspecialchars($vm)?>" <?=in_array($vm, $tier1_vms) ? 'checked' : ''?>>
+    <?=htmlspecialchars($vm)?>
+    <?php
+    $state_out = [];
+    exec("virsh domstate '$vm' 2>/dev/null", $state_out);
+    $state = trim($state_out[0] ?? '');
+    $color = $state === 'running' ? '#4caf50' : ($state === 'shut off' ? '#888' : '#f0ad4e');
+    ?>
+    <span style="color: <?=$color?>; font-size: 11px;">(<?=$state?>)</span>
+</label>
+<?php endforeach; ?>
+</div>
+<input type="hidden" name="VMS_TIER1" id="vms-tier1" value="<?=htmlspecialchars($cfg['VMS_TIER1'] ?? '')?>">
+
+<blockquote class="inline_help">
+Critical VMs that need daily backups with longer retention.
+</blockquote>
+
+_(Tier 1 Schedule)_:
+: <input type="text" name="SCHEDULE_TIER1" value="<?=$cfg['SCHEDULE_TIER1']?>" size="20">
+<span style="color: #888; font-size: 12px;">Cron format (default: 3 AM daily)</span>
+
+_(Tier 1 Retention)_:
+: <input type="number" name="RETENTION_TIER1" value="<?=$cfg['RETENTION_TIER1']?>" min="1" max="30" size="5">
+<span style="color: #888; font-size: 12px;">Keep last N backups per VM</span>
+
+&nbsp;
+
+_(Tier 2 VMs - Weekly Backup)_:
+: <div id="tier2-vms">
+<?php foreach ($all_vms as $vm): ?>
+<label style="display: block; margin: 4px 0;">
+    <input type="checkbox" class="tier2-cb" value="<?=htmlspecialchars($vm)?>" <?=in_array($vm, $tier2_vms) ? 'checked' : ''?>>
+    <?=htmlspecialchars($vm)?>
+</label>
+<?php endforeach; ?>
+</div>
+<input type="hidden" name="VMS_TIER2" id="vms-tier2" value="<?=htmlspecialchars($cfg['VMS_TIER2'] ?? '')?>">
+
+<blockquote class="inline_help">
+Secondary VMs that need weekly backups with shorter retention.
+</blockquote>
+
+_(Tier 2 Schedule)_:
+: <input type="text" name="SCHEDULE_TIER2" value="<?=$cfg['SCHEDULE_TIER2']?>" size="20">
+<span style="color: #888; font-size: 12px;">Cron format (default: 3 AM Sunday)</span>
+
+_(Tier 2 Retention)_:
+: <input type="number" name="RETENTION_TIER2" value="<?=$cfg['RETENTION_TIER2']?>" min="1" max="30" size="5">
+<span style="color: #888; font-size: 12px;">Keep last N backups per VM</span>
+
+&nbsp;
+
+## Notifications
+
+_(Pushover App Token)_:
+: <input type="password" name="PUSHOVER_APP_TOKEN" value="<?=$cfg['PUSHOVER_APP_TOKEN']?>" size="40">
+
+_(Pushover User Key)_:
+: <input type="password" name="PUSHOVER_USER_KEY" value="<?=$cfg['PUSHOVER_USER_KEY']?>" size="40">
+
+<blockquote class="inline_help">
+Pushover notifications are sent on backup failure only. Leave blank to disable.
+</blockquote>
+
+&nbsp;
+
+## Backblaze B2 (Coming Soon)
+
+_(B2 Enabled)_:
+: <select name="B2_ENABLED" disabled>
+<?=mk_option($cfg['B2_ENABLED'], "false", _("Disabled"))?>
+<?=mk_option($cfg['B2_ENABLED'], "true", _("Enabled"))?>
+</select>
+<span style="color: #888; font-size: 12px;">Off-site backup to Backblaze B2 (not yet implemented)</span>
+
+_(B2 Bucket)_:
+: <input type="text" name="B2_BUCKET" value="<?=$cfg['B2_BUCKET']?>" size="40" disabled>
+
+_(B2 Key ID)_:
+: <input type="password" name="B2_KEY_ID" value="<?=$cfg['B2_KEY_ID']?>" size="40" disabled>
+
+_(B2 Application Key)_:
+: <input type="password" name="B2_APP_KEY" value="<?=$cfg['B2_APP_KEY']?>" size="40" disabled>
+
+&nbsp;
+
+## Logging
+
+_(Log Retention Days)_:
+: <input type="number" name="LOG_RETENTION_DAYS" value="<?=$cfg['LOG_RETENTION_DAYS']?>" min="7" max="365" size="5">
+
+<input type="submit" name="#default" value="_(Default)_">
+: <input type="submit" name="#apply" value="_(Apply)_" disabled>
+<input type="button" value="_(Done)_" onclick="done()">
+</form>
+
+<script>
+// Sync checkboxes to hidden inputs
+function syncTiers() {
+    var t1 = [];
+    document.querySelectorAll('.tier1-cb:checked').forEach(function(cb) {
+        t1.push(cb.value);
+    });
+    document.getElementById('vms-tier1').value = t1.join(',');
+
+    var t2 = [];
+    document.querySelectorAll('.tier2-cb:checked').forEach(function(cb) {
+        t2.push(cb.value);
+    });
+    document.getElementById('vms-tier2').value = t2.join(',');
+}
+
+// Mutual exclusion: a VM can't be in both tiers
+document.querySelectorAll('.tier1-cb').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        if (this.checked) {
+            var t2 = document.querySelector('.tier2-cb[value="' + this.value + '"]');
+            if (t2) t2.checked = false;
+        }
+        syncTiers();
+    });
+});
+document.querySelectorAll('.tier2-cb').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        if (this.checked) {
+            var t1 = document.querySelector('.tier1-cb[value="' + this.value + '"]');
+            if (t1) t1.checked = false;
+        }
+        syncTiers();
+    });
+});
+
+// Initial sync
+syncTiers();
+</script>

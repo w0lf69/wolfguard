@@ -1,0 +1,3 @@
+#!/bin/bash
+# WolfGuard: Array started event — install cron schedules
+/etc/rc.d/rc.wolfguard start
