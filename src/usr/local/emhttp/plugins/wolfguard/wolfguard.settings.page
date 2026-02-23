@@ -1,5 +1,6 @@
 Menu="Utilities:WolfGuard"
 Title="WolfGuard Settings"
+Icon="plugins/wolfguard/images/wolfguard-48.png"
 Type="php"
 ---
 <?php
