@@ -16,7 +16,7 @@
     pluginURL="&pluginURL;"
     support="&support;"
     project="&project;"
-    icon="plugins/wolfguard/images/wolfguard-48.png"
+    icon="icon.png"
     min="6.12.0"
     launch="Utilities/WolfGuard">
 

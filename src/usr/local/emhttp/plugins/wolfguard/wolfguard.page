@@ -1,6 +1,6 @@
 Menu="Utilities"
 Title="WolfGuard"
-Icon="plugins/wolfguard/images/wolfguard-48.png"
+Icon="icon.png"
 Type="php"
 Tabs="true"
 ---
@@ -29,7 +29,7 @@ if (file_exists('/var/run/wolfguard.lock')) {
 
 <!-- Tab: Status -->
 <div id="title" class="nocontrol" style="display: flex; align-items: center; gap: 12px;">
-    <img src="/plugins/wolfguard/images/wolfguard-128.png" style="width: 48px; height: 48px;">
+    <img src="/plugins/wolfguard/icon.png" style="width: 48px; height: 48px;">
     WolfGuard VM Backup
 </div>
 
