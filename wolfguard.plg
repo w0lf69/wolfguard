@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name        "wolfguard">
 <!ENTITY author      "OPUS (w0lf69)">
-<!ENTITY version     "2025.02.23b">
+<!ENTITY version     "2.23.26">
 <!ENTITY pluginURL   "https://raw.githubusercontent.com/w0lf69/wolfguard/main/wolfguard.plg">
 <!ENTITY support     "https://github.com/w0lf69/wolfguard">
 <!ENTITY project     "https://github.com/w0lf69/wolfguard">
-<!ENTITY txzURL      "https://github.com/w0lf69/wolfguard/releases/download/v2025.02.23b/wolfguard-2025.02.23b.txz">
-<!ENTITY txzSHA256   "29376a9626879d53d9411e931beea801b991fc342d799be92bafd1535aa9e340">
+<!ENTITY txzURL      "https://github.com/w0lf69/wolfguard/releases/download/v2.23.26/wolfguard-2.23.26.txz">
+<!ENTITY txzSHA256   "ceed8bba0de223f7a5769599f847b21efed2dde5c5b93758e6e9e8d6afdc980e">
 <!ENTITY pluginLOC   "/boot/config/plugins/&name;">
 <!ENTITY emhttpLOC   "/usr/local/emhttp/plugins/&name;">
 ]>
@@ -21,7 +21,7 @@
     launch="Utilities/WolfGuard">
 
 <CHANGES>
-### 2025.02.23b
+### 2.23.26
 - Initial release
 - Live VM backup with QEMU snapshots (fsfreeze via guest agent)
 - zstd compression (sparse-aware)
