@@ -2,10 +2,27 @@
 // WolfGuard AJAX handler
 // Called by the settings/status pages for dynamic actions
 
+// Require valid Unraid session (emhttpd gates access, but verify explicitly)
+session_start();
+if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || $_SERVER['HTTP_X_REQUESTED_WITH'] !== 'XMLHttpRequest') {
+    // Only accept AJAX requests — blocks direct browser/cross-origin POSTs
+    http_response_code(403);
+    echo json_encode(['error' => 'AJAX requests only']);
+    exit;
+}
+
 $action = $_POST['action'] ?? '';
 $plugin_dir = '/usr/local/emhttp/plugins/wolfguard';
 $cfg_file = '/boot/config/plugins/wolfguard/wolfguard.cfg';
 $status_file = '/boot/config/plugins/wolfguard/status.json';
+
+// Allowlist of valid actions
+$allowed_actions = ['get_vms', 'get_vm_info', 'get_status', 'get_backup_info', 'run_backup', 'get_logs', 'is_running'];
+if (!in_array($action, $allowed_actions, true)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Unknown action']);
+    exit;
+}
 
 switch ($action) {
     case 'get_vms':
@@ -24,11 +41,11 @@ switch ($action) {
         $info = [];
         foreach ($vms as $vm) {
             $state_out = [];
-            exec("virsh domstate '$vm' 2>/dev/null", $state_out);
+            exec("virsh domstate " . escapeshellarg($vm) . " 2>/dev/null", $state_out);
             $state = trim($state_out[0] ?? 'unknown');
 
             $disk_out = [];
-            exec("virsh domblklist '$vm' --details 2>/dev/null | awk '\$2 == \"disk\" { print \$4 }'", $disk_out);
+            exec("virsh domblklist " . escapeshellarg($vm) . " --details 2>/dev/null | awk '\$2 == \"disk\" { print \$4 }'", $disk_out);
             $disks = array_filter(array_map('trim', $disk_out));
 
             $total_size = 0;

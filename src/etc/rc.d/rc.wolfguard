@@ -11,25 +11,52 @@ CRON_FILE="/etc/cron.d/wolfguard"
 source "$DEFAULT_CFG"
 [[ -f "$PLUGIN_CFG" ]] && source "$PLUGIN_CFG"
 
+validate_vm_name() {
+    [[ "$1" =~ ^[a-zA-Z0-9_.-]+$ ]]
+}
+
+validate_cron_schedule() {
+    # 5 cron fields: minute hour dom month dow
+    [[ "$1" =~ ^[0-9*/,\-]+[[:space:]]+[0-9*/,\-]+[[:space:]]+[0-9*/,\-]+[[:space:]]+[0-9*/,\-]+[[:space:]]+[0-9*/,\-]+$ ]]
+}
+
 install_cron() {
     local cron_content=""
 
     # Tier 1 schedule
     if [[ -n "$VMS_TIER1" ]]; then
-        IFS=',' read -ra T1 <<< "$VMS_TIER1"
-        for vm in "${T1[@]}"; do
-            vm=$(echo "$vm" | xargs)
-            [[ -n "$vm" ]] && cron_content+="${SCHEDULE_TIER1} ${PLUGIN_DIR}/scripts/wolfguard-backup.sh --vm \"${vm}\" > /dev/null 2>&1\n"
-        done
+        if ! validate_cron_schedule "$SCHEDULE_TIER1"; then
+            echo "WolfGuard: invalid Tier 1 cron schedule, skipping" >&2
+        else
+            IFS=',' read -ra T1 <<< "$VMS_TIER1"
+            for vm in "${T1[@]}"; do
+                vm=$(echo "$vm" | xargs)
+                [[ -z "$vm" ]] && continue
+                if ! validate_vm_name "$vm"; then
+                    echo "WolfGuard: invalid VM name '$vm', skipping" >&2
+                    continue
+                fi
+                cron_content+="${SCHEDULE_TIER1} ${PLUGIN_DIR}/scripts/wolfguard-backup.sh --vm \"${vm}\" > /dev/null 2>&1\n"
+            done
+        fi
     fi
 
     # Tier 2 schedule
     if [[ -n "$VMS_TIER2" ]]; then
-        IFS=',' read -ra T2 <<< "$VMS_TIER2"
-        for vm in "${T2[@]}"; do
-            vm=$(echo "$vm" | xargs)
-            [[ -n "$vm" ]] && cron_content+="${SCHEDULE_TIER2} ${PLUGIN_DIR}/scripts/wolfguard-backup.sh --vm \"${vm}\" > /dev/null 2>&1\n"
-        done
+        if ! validate_cron_schedule "$SCHEDULE_TIER2"; then
+            echo "WolfGuard: invalid Tier 2 cron schedule, skipping" >&2
+        else
+            IFS=',' read -ra T2 <<< "$VMS_TIER2"
+            for vm in "${T2[@]}"; do
+                vm=$(echo "$vm" | xargs)
+                [[ -z "$vm" ]] && continue
+                if ! validate_vm_name "$vm"; then
+                    echo "WolfGuard: invalid VM name '$vm', skipping" >&2
+                    continue
+                fi
+                cron_content+="${SCHEDULE_TIER2} ${PLUGIN_DIR}/scripts/wolfguard-backup.sh --vm \"${vm}\" > /dev/null 2>&1\n"
+            done
+        fi
     fi
 
     if [[ -n "$cron_content" ]]; then

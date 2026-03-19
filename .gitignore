@@ -9,3 +9,6 @@ build/
 .DS_Store
 Thumbs.db
 CODEX.json
+
+# Live plugin config (may contain Pushover/B2 credentials)
+wolfguard.cfg

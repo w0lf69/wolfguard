@@ -8,7 +8,7 @@
 #   --dry-run    Show what would happen without doing it
 #   --force      Ignore schedule, run now
 
-set -eo pipefail
+set -euo pipefail
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
@@ -20,6 +20,12 @@ SCRIPTS_DIR="${PLUGIN_DIR}/scripts"
 # Load defaults, then user overrides
 source "$DEFAULT_CFG"
 [[ -f "$PLUGIN_CFG" ]] && source "$PLUGIN_CFG"
+
+# Validate required config
+: "${BACKUP_DIR:?BACKUP_DIR must be set in config}"
+: "${LOG_DIR:?LOG_DIR must be set in config}"
+: "${ZSTD_LEVEL:?ZSTD_LEVEL must be set in config}"
+: "${ZSTD_THREADS:?ZSTD_THREADS must be set in config}"
 
 # Runtime
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -75,16 +81,12 @@ cleanup_lock() {
 
 # ── Locking (prevent concurrent runs) ──────────────────────────────────────
 
-if [[ -f "$LOCK_FILE" ]]; then
-    LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null)
-    if kill -0 "$LOCK_PID" 2>/dev/null; then
-        echo "WolfGuard already running (PID $LOCK_PID). Exiting."
-        exit 1
-    fi
-    # Stale lock
-    rm -f "$LOCK_FILE"
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    echo "WolfGuard already running. Exiting."
+    exit 1
 fi
-echo $$ > "$LOCK_FILE"
+echo $$ >&200
 trap cleanup_lock EXIT
 
 # ── VM Discovery ────────────────────────────────────────────────────────────
@@ -451,7 +453,7 @@ notify_failure() {
 # ── Main ────────────────────────────────────────────────────────────────────
 
 log "============================================"
-log "WolfGuard Backup Engine v1.0.0"
+log "WolfGuard Backup Engine v2026.03.19"
 log "Started: $DATE_HUMAN"
 log "Target: $BACKUP_DIR"
 log "Compression: zstd -${ZSTD_LEVEL} -T${ZSTD_THREADS}"

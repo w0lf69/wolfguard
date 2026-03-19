@@ -21,7 +21,7 @@ $tier2_vms = array_filter(array_map('trim', explode(',', $cfg['VMS_TIER2'] ?? ''
 <input type="hidden" name="#command" value="/etc/rc.d/rc.wolfguard restart">
 
 _(Backup Destination)_:
-: <input type="text" name="BACKUP_DIR" value="<?=$cfg['BACKUP_DIR']?>" data-pickroot="/mnt" data-pickfolders="true" size="50">
+: <input type="text" name="BACKUP_DIR" value="<?=htmlspecialchars($cfg['BACKUP_DIR'] ?? '', ENT_QUOTES, 'UTF-8')?>" data-pickroot="/mnt" data-pickfolders="true" size="50">
 
 <blockquote class="inline_help">
 Where compressed VM backups are stored. Must have enough space for your VMs.
@@ -58,7 +58,7 @@ _(Tier 1 VMs - Daily Backup)_:
     <?=htmlspecialchars($vm)?>
     <?php
     $state_out = [];
-    exec("virsh domstate '$vm' 2>/dev/null", $state_out);
+    exec("virsh domstate " . escapeshellarg($vm) . " 2>/dev/null", $state_out);
     $state = trim($state_out[0] ?? '');
     $color = $state === 'running' ? '#4caf50' : ($state === 'shut off' ? '#888' : '#f0ad4e');
     ?>
@@ -73,11 +73,11 @@ Critical VMs that need daily backups with longer retention.
 </blockquote>
 
 _(Tier 1 Schedule)_:
-: <input type="text" name="SCHEDULE_TIER1" value="<?=$cfg['SCHEDULE_TIER1']?>" size="20">
+: <input type="text" name="SCHEDULE_TIER1" value="<?=htmlspecialchars($cfg['SCHEDULE_TIER1'] ?? '', ENT_QUOTES, 'UTF-8')?>" size="20">
 <span style="color: #888; font-size: 12px;">Cron format (default: 3 AM daily)</span>
 
 _(Tier 1 Retention)_:
-: <input type="number" name="RETENTION_TIER1" value="<?=$cfg['RETENTION_TIER1']?>" min="1" max="30" size="5">
+: <input type="number" name="RETENTION_TIER1" value="<?=htmlspecialchars($cfg['RETENTION_TIER1'] ?? '', ENT_QUOTES, 'UTF-8')?>" min="1" max="30" size="5">
 <span style="color: #888; font-size: 12px;">Keep last N backups per VM</span>
 
 &nbsp;
@@ -98,11 +98,11 @@ Secondary VMs that need weekly backups with shorter retention.
 </blockquote>
 
 _(Tier 2 Schedule)_:
-: <input type="text" name="SCHEDULE_TIER2" value="<?=$cfg['SCHEDULE_TIER2']?>" size="20">
+: <input type="text" name="SCHEDULE_TIER2" value="<?=htmlspecialchars($cfg['SCHEDULE_TIER2'] ?? '', ENT_QUOTES, 'UTF-8')?>" size="20">
 <span style="color: #888; font-size: 12px;">Cron format (default: 3 AM Sunday)</span>
 
 _(Tier 2 Retention)_:
-: <input type="number" name="RETENTION_TIER2" value="<?=$cfg['RETENTION_TIER2']?>" min="1" max="30" size="5">
+: <input type="number" name="RETENTION_TIER2" value="<?=htmlspecialchars($cfg['RETENTION_TIER2'] ?? '', ENT_QUOTES, 'UTF-8')?>" min="1" max="30" size="5">
 <span style="color: #888; font-size: 12px;">Keep last N backups per VM</span>
 
 &nbsp;
@@ -144,7 +144,7 @@ _(B2 Application Key)_:
 ## Logging
 
 _(Log Retention Days)_:
-: <input type="number" name="LOG_RETENTION_DAYS" value="<?=$cfg['LOG_RETENTION_DAYS']?>" min="7" max="365" size="5">
+: <input type="number" name="LOG_RETENTION_DAYS" value="<?=htmlspecialchars($cfg['LOG_RETENTION_DAYS'] ?? '', ENT_QUOTES, 'UTF-8')?>" min="7" max="365" size="5">
 
 <input type="submit" name="#default" value="_(Default)_">
 : <input type="submit" name="#apply" value="_(Apply)_" disabled>

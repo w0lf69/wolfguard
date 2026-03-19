@@ -1,13 +1,13 @@
 <?xml version='1.0' standalone='yes'?>
 <!DOCTYPE PLUGIN [
 <!ENTITY name        "wolfguard">
-<!ENTITY author      "OPUS (w0lf69)">
-<!ENTITY version     "2.23.26">
+<!ENTITY author      "OPUS &amp; Dino (w0lf69)">
+<!ENTITY version     "2026.03.19">
 <!ENTITY pluginURL   "https://raw.githubusercontent.com/w0lf69/wolfguard/main/wolfguard.plg">
 <!ENTITY support     "https://github.com/w0lf69/wolfguard">
 <!ENTITY project     "https://github.com/w0lf69/wolfguard">
-<!ENTITY txzURL      "https://github.com/w0lf69/wolfguard/releases/download/v2.23.26/wolfguard-2.23.26.txz">
-<!ENTITY txzSHA256   "ceed8bba0de223f7a5769599f847b21efed2dde5c5b93758e6e9e8d6afdc980e">
+<!ENTITY txzURL      "https://github.com/w0lf69/wolfguard/releases/download/v2026.03.19/wolfguard-2026.03.19.txz">
+<!ENTITY txzSHA256   "32f418c6cf59b59a975e250169c5dfc4464af83ac92c9ed85854b3069daef6d3">
 <!ENTITY pluginLOC   "/boot/config/plugins/&name;">
 <!ENTITY emhttpLOC   "/usr/local/emhttp/plugins/&name;">
 ]>
@@ -21,7 +21,16 @@
     launch="Utilities/WolfGuard">
 
 <CHANGES>
-### 2.23.26
+### 2026.03.19
+- Security hardening: escapeshellarg on all shell exec calls, XSS protection on config values
+- AJAX-only enforcement on exec.php (blocks direct/cross-origin POST)
+- VM name and cron schedule validation before writing cron file
+- Atomic flock-based locking (replaces PID file race condition)
+- Required config validation (set -euo pipefail)
+- Custom WolfGuard icon (cyberpunk wolf with shield)
+- Action allowlist on AJAX handler
+
+### 2025.02.23
 - Initial release
 - Live VM backup with QEMU snapshots (fsfreeze via guest agent)
 - zstd compression (sparse-aware)
